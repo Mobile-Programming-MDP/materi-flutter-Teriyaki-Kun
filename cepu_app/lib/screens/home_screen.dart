@@ -2,6 +2,7 @@ import 'package:cepu_app/screens/add_post_screens.dart';
 import 'package:cepu_app/screens/sign_in_screen.dart';
 import 'package:cepu_app/services/post_service.dart';
 import 'package:cepu_app/widgets/post_list_items.dart';
+import 'package:cepu_app/widgets/search_widget.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -13,6 +14,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // testSetUser();
+  }
+
   Future<void> signOut() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
@@ -23,9 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  //Fungsi untuk membuat url foto profile / avatar
   String generateAvatarUrl(String? fullName) {
-    final formattedName = fullName!.trim().replaceAll(' ', '+');
+    final name = (fullName != null && fullName.trim().isNotEmpty) ? fullName : 'User';
+    final formattedName = name.trim().replaceAll(' ', '+');
     return 'https://ui-avatars.com/api/?name=$formattedName&color=FFFFFF&background=000000';
   }
 
@@ -45,19 +52,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+
       body: Column(
         children: [
+          const SearchWidget(hintText: "Cari tempat wisata impianmu..."),
           const SizedBox(height: 8.0),
           Image.network(
             generateAvatarUrl(
-              FirebaseAuth.instance.currentUser?.displayName.toString(),
+              FirebaseAuth.instance.currentUser?.displayName ?? FirebaseAuth.instance.currentUser?.email,
             ),
             width: 80,
             height: 80,
           ),
           const SizedBox(height: 8.0),
           Text(
-            FirebaseAuth.instance.currentUser!.displayName!,
+            FirebaseAuth.instance.currentUser?.displayName ?? FirebaseAuth.instance.currentUser?.email ?? 'Unknown User',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8.0),
@@ -77,17 +86,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   return const Center(child: Text('No posts yet.'));
                 }
                 return RefreshIndicator(
-                  onRefresh: () async {
-                  },
+                  onRefresh: () async {},
                   child: ListView.builder(
                     itemCount: posts.length,
                     itemBuilder: (context, index) {
                       final post = posts[index];
                       final isOwner =
-                          currentUserId != null &&
-                          post.userId == currentUserId;
-      //Buat widget PostListItem, di dalam folder widgets 
-      //dengan nama file post_list_item.dart
+                          currentUserId != null && post.userId == currentUserId;
                       return PostListItem(post: post, isOwner: isOwner);
                     },
                   ),
@@ -106,5 +111,15 @@ class _HomeScreenState extends State<HomeScreen> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  void testSetUser() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      await user.updateDisplayName("Riki");
+      await user.updateProfile(displayName: "Riki", photoURL: "");
+      await user.reload();
+    }
   }
 }
