@@ -1,10 +1,12 @@
 import 'dart:convert';
+
 import 'package:cepu_app/models/models.dart';
 import 'package:cepu_app/services/post_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 
 class AddPostScreen extends StatefulWidget {
   const AddPostScreen({super.key});
@@ -21,6 +23,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
   String? _category;
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
+  bool _isGenerating = false;
   List<String> get categories {
     return [
       'Jalan Rusak',
@@ -214,6 +217,91 @@ class _AddPostScreenState extends State<AddPostScreen> {
         setState(() {
           _isSubmitting = false;
         });
+      }
+    }
+  }
+
+  Future<void> _generateDescriptionWithAi() async {
+    if (_base64Image == null) return;
+
+    setState(() => _isGenerating = false);
+
+    try {
+      const apiKey = 'AIzaSyCRQsJq1XcxDl1Xo7W8Xh5fVMlAsbR4UfM';
+
+      final url =
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey';
+
+      final body = jsonEncode({
+        "contents": [
+          {
+            "parts": [
+              {
+                "inlineData": {"mimeType": "image/jpeg", "data": _base64Image},
+              },
+              {
+                "text":
+                    "Berdasarkan foto ini, identifikasi satu kategori utama kerusakan fasilitas umum "
+                    "dari daftar berikut: Jalan Rusak, Lampu Jalan Mati, Lawan Arah, Merokok di Jalan, "
+                    "Tidak Pakai Helm, dan Lainnya. "
+                    "Pilih kategori yang paling dominan atau paling mendesak untuk dilaporkan. "
+                    "Fokus pada kerusakan yang terlihat dan hindari spekulasi.\n\n"
+                    "Format output:\n"
+                    "Kategori: [kategori]\n"
+                    "Deskripsi: [deskripsi singkat]",
+              },
+            ],
+          },
+        ],
+      });
+
+      final headers = {'Content-Type': 'application/json'};
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: body,
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+
+        final text =
+            jsonResponse['candidates'][0]['content']['parts'][0]['text'];
+
+        print("AI TEXT: $text");
+
+        if (text != null && text.isNotEmpty) {
+          final lines = text.trim().split('\n');
+
+          String? aiCategory;
+          String? aiDescription;
+
+          for (var line in lines) {
+            final lower = line.toLowerCase();
+
+            if (lower.startsWith('kategori:')) {
+              aiCategory = line.substring(10).trim();
+            } else if (lower.startsWith('deskripsi:')) {
+              aiDescription = line.substring(11).trim();
+            }
+          }
+
+          aiDescription ??= text.trim();
+
+          setState(() {
+            _category = aiCategory ?? 'Tidak diketahui';
+            _descriptionController.text = aiDescription!;
+          });
+        }
+      } else {
+        debugPrint('Request failed: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Failed to generate AI description: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
       }
     }
   }
