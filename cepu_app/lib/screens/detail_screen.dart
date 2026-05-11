@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cepu_app/models/models.dart';
+import 'package:cepu_app/screens/map_detail_screen.dart';
 import 'package:cepu_app/services/post_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -38,7 +39,7 @@ class DetailScreen extends StatelessWidget {
   void _sharePost() {
     final text =
         '${post.category ?? ''}\n${post.description ?? ''}\nPosted by: ${post.userFullName ?? ''}';
-    SharePlus.instance.share(ShareParams(text: text));
+    Share.share(text);
   }
 
   @override
@@ -84,8 +85,7 @@ class DetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (post.category != null)
-                    Chip(label: Text(post.category!)),
+                  if (post.category != null) Chip(label: Text(post.category!)),
                   const SizedBox(height: 8),
                   Text(
                     post.description ?? '',
@@ -117,6 +117,17 @@ class DetailScreen extends StatelessWidget {
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 14),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => MapDetailScreen(post: post),
+                          ),
+                        );
+                      },
+                      child: const Text('View on Map'),
                     ),
                   ],
                 ],
